@@ -1,0 +1,7 @@
+Django>=5.0
+djangorestframework
+channels
+channels-redis
+Pillow
+whitenoise
+daphne
