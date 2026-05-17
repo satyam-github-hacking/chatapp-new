@@ -5,3 +5,4 @@ channels-redis
 Pillow
 whitenoise
 daphne
+django-cors-headers
