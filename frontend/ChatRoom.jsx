@@ -1,4 +1,3 @@
-```jsx
 import { useEffect, useRef, useState, useContext } from "react";
 import { AuthContext } from "./App";
 
@@ -9,7 +8,7 @@ const GREEN = "#25d366";
 const TEXT = "#e9edef";
 const MUTED = "#8696a0";
 
-/* YOUR RENDER BACKEND URL */
+/* YOUR BACKEND URL */
 const API_BASE = "https://chatapp-backend-zrsg.onrender.com";
 
 /* WEBSOCKET URL */
@@ -61,7 +60,7 @@ export default function ChatRoom({ room, onBack }) {
 
   /* FIXED WEBSOCKET URL */
   const wsUrl = `${WS_BASE}/ws/chat/${room.name}/?username=${encodeURIComponent(
-    user.username
+    user.username,
   )}`;
 
   /* CONNECT WEBSOCKET */
@@ -142,7 +141,7 @@ export default function ChatRoom({ room, onBack }) {
       JSON.stringify({
         message: trimmed,
         username: user.username,
-      })
+      }),
     );
 
     setMessage("");
@@ -189,7 +188,7 @@ export default function ChatRoom({ room, onBack }) {
             message: "",
             file_url: data.url,
             file_name: data.name,
-          })
+          }),
         );
       }
     } catch (err) {
@@ -400,13 +399,9 @@ export default function ChatRoom({ room, onBack }) {
             height: "46px",
             borderRadius: "50%",
             border: "none",
-            background:
-              connected && message.trim() ? GREEN : ELEVATED,
+            background: connected && message.trim() ? GREEN : ELEVATED,
             color: "white",
-            cursor:
-              connected && message.trim()
-                ? "pointer"
-                : "not-allowed",
+            cursor: connected && message.trim() ? "pointer" : "not-allowed",
             fontSize: "18px",
           }}
         >
@@ -416,4 +411,3 @@ export default function ChatRoom({ room, onBack }) {
     </div>
   );
 }
-```
