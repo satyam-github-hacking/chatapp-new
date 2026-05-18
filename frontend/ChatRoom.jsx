@@ -8,71 +8,64 @@ const GREEN = "#25d366";
 const TEXT = "#e9edef";
 const MUTED = "#8696a0";
 
-/* YOUR BACKEND URL */
-const API_BASE = "https://chatapp-backend-zrsg.onrender.com";
+/* BACKEND URL */
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://YOUR-BACKEND.onrender.com";
 
 /* WEBSOCKET URL */
-const WS_BASE = "wss://chatapp-backend-zrsg.onrender.com";
+const WS_BASE = API_BASE.replace("https://", "wss://").replace(
+  "http://",
+  "ws://",
+);
 
-function Avatar({ name, size = 36 }) {
-  const colors = [
-    "#25d366",
-    "#3b82f6",
-    "#8b5cf6",
-    "#f59e0b",
-    "#ef4444",
-    "#06b6d4",
-  ];
-
-  const color = colors[name.charCodeAt(0) % colors.length];
-
+function Avatar({ name, size = 38 }) {
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: "50%",
-        background: color,
-        flexShrink: 0,
+        background: GREEN,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         color: "white",
         fontWeight: "700",
-        fontSize: size * 0.4,
+        fontSize: size * 0.42,
+        flexShrink: 0,
       }}
     >
-      {name?.[0]?.toUpperCase() || "U"}
+      {name?.[0]?.toUpperCase()}
     </div>
   );
 }
 
 export default function ChatRoom({ room, onBack }) {
-  const { user, token } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const [connected, setConnected] = useState(false);
-  const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
-  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
 
   /* FIXED WEBSOCKET URL */
-  const wsUrl = `${WS_BASE}/ws/chat/${room.name}/?username=${encodeURIComponent(
-    user.username,
-  )}`;
+  const wsUrl =
+    WS_BASE +
+    "/ws/chat/" +
+    room.name +
+    "/?username=" +
+    encodeURIComponent(user.username);
 
   /* CONNECT WEBSOCKET */
   useEffect(() => {
-    console.log("Connecting WebSocket:", wsUrl);
-
     const ws = new WebSocket(wsUrl);
 
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
+      console.log("WebSocket Connected");
       setConnected(true);
     };
 
@@ -80,35 +73,25 @@ export default function ChatRoom({ room, onBack }) {
       try {
         const data = JSON.parse(event.data);
 
-        console.log("WS message:", data);
-
         if (data.type === "history") {
           setMessages(data.messages || []);
         }
 
         if (data.type === "message") {
-          setMessages((prev) => [
-            ...prev,
-            {
-              username: data.username,
-              message: data.message || "",
-              file_url: data.file_url || "",
-              file_name: data.file_name || "",
-            },
-          ]);
+          setMessages((prev) => [...prev, data]);
         }
       } catch (err) {
-        console.error("WS parse error:", err);
+        console.log("Message parse error", err);
       }
     };
 
     ws.onerror = (err) => {
-      console.error("WebSocket error:", err);
+      console.log("WebSocket Error:", err);
       setConnected(false);
     };
 
     ws.onclose = () => {
-      console.log("WebSocket closed");
+      console.log("WebSocket Closed");
       setConnected(false);
     };
 
@@ -126,76 +109,17 @@ export default function ChatRoom({ room, onBack }) {
 
   /* SEND MESSAGE */
   const sendMessage = () => {
-    const trimmed = message.trim();
+    if (!message.trim()) return;
 
-    if (!trimmed) return;
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          message: message.trim(),
+          username: user.username,
+        }),
+      );
 
-    if (!socketRef.current) return;
-
-    if (socketRef.current.readyState !== WebSocket.OPEN) {
-      alert("WebSocket not connected");
-      return;
-    }
-
-    socketRef.current.send(
-      JSON.stringify({
-        message: trimmed,
-        username: user.username,
-      }),
-    );
-
-    setMessage("");
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  /* FILE UPLOAD */
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    setUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch(`${API_BASE}/api/upload/`, {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Upload failed");
-        return;
-      }
-
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            username: user.username,
-            message: "",
-            file_url: data.url,
-            file_name: data.name,
-          }),
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Upload failed");
-    } finally {
-      setUploading(false);
+      setMessage("");
     }
   };
 
@@ -204,7 +128,7 @@ export default function ChatRoom({ room, onBack }) {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "100%",
         background: BG,
         color: TEXT,
       }}
@@ -217,6 +141,8 @@ export default function ChatRoom({ room, onBack }) {
           display: "flex",
           alignItems: "center",
           gap: "12px",
+          borderBottom: "1px solid #2a3942",
+          flexShrink: 0,
         }}
       >
         <button
@@ -224,9 +150,9 @@ export default function ChatRoom({ room, onBack }) {
           style={{
             background: "none",
             border: "none",
-            color: MUTED,
-            cursor: "pointer",
+            color: TEXT,
             fontSize: "22px",
+            cursor: "pointer",
           }}
         >
           ←
@@ -271,19 +197,20 @@ export default function ChatRoom({ room, onBack }) {
             style={{
               textAlign: "center",
               color: MUTED,
-              marginTop: "40px",
+              marginTop: "30px",
+              fontSize: "14px",
             }}
           >
-            Say hello 👋
+            Start chatting 👋
           </div>
         )}
 
-        {messages.map((msg, index) => {
+        {messages.map((msg, i) => {
           const isMe = msg.username === user.username;
 
           return (
             <div
-              key={index}
+              key={i}
               style={{
                 display: "flex",
                 justifyContent: isMe ? "flex-end" : "flex-start",
@@ -291,10 +218,13 @@ export default function ChatRoom({ room, onBack }) {
             >
               <div
                 style={{
-                  maxWidth: "75%",
                   background: isMe ? "#005c4b" : ELEVATED,
+                  color: TEXT,
                   padding: "10px 14px",
-                  borderRadius: "12px",
+                  borderRadius: isMe
+                    ? "14px 14px 4px 14px"
+                    : "14px 14px 14px 4px",
+                  maxWidth: "75%",
                   wordBreak: "break-word",
                 }}
               >
@@ -311,31 +241,7 @@ export default function ChatRoom({ room, onBack }) {
                   </div>
                 )}
 
-                {msg.message && (
-                  <div
-                    style={{
-                      color: TEXT,
-                      fontSize: "15px",
-                    }}
-                  >
-                    {msg.message}
-                  </div>
-                )}
-
-                {msg.file_url && (
-                  <a
-                    href={`${API_BASE}${msg.file_url}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      color: "#7dd3fc",
-                      textDecoration: "none",
-                      fontSize: "14px",
-                    }}
-                  >
-                    📎 {msg.file_name}
-                  </a>
-                )}
+                <div>{msg.message}</div>
               </div>
             </div>
           );
@@ -348,49 +254,35 @@ export default function ChatRoom({ room, onBack }) {
       <div
         style={{
           background: SURFACE,
-          padding: "10px 16px",
+          padding: "10px",
           display: "flex",
-          gap: "8px",
           alignItems: "center",
+          gap: "10px",
+          borderTop: "1px solid #2a3942",
+          flexShrink: 0,
         }}
       >
-        {/* FILE BUTTON */}
-        <label
-          style={{
-            cursor: uploading ? "not-allowed" : "pointer",
-            fontSize: "20px",
-            color: uploading ? GREEN : MUTED,
-          }}
-        >
-          📎
-          <input
-            type="file"
-            hidden
-            onChange={handleFileUpload}
-            disabled={uploading}
-          />
-        </label>
-
-        {/* MESSAGE INPUT */}
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
           placeholder="Type a message..."
-          disabled={!connected}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              sendMessage();
+            }
+          }}
           style={{
             flex: 1,
-            padding: "12px 16px",
             background: ELEVATED,
             border: "none",
             borderRadius: "24px",
+            padding: "12px 16px",
             color: TEXT,
-            fontSize: "15px",
             outline: "none",
+            fontSize: "15px",
           }}
         />
 
-        {/* SEND BUTTON */}
         <button
           onClick={sendMessage}
           disabled={!connected || !message.trim()}
@@ -401,8 +293,9 @@ export default function ChatRoom({ room, onBack }) {
             border: "none",
             background: connected && message.trim() ? GREEN : ELEVATED,
             color: "white",
-            cursor: connected && message.trim() ? "pointer" : "not-allowed",
             fontSize: "18px",
+            cursor: connected && message.trim() ? "pointer" : "not-allowed",
+            flexShrink: 0,
           }}
         >
           ➤
