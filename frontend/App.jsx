@@ -18,6 +18,10 @@ const GREEN = "#25d366";
 const TEXT = "#e9edef";
 const MUTED = "#8696a0";
 
+/* API */
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://YOUR-BACKEND.onrender.com";
+
 /* ICONS */
 
 const ChatIcon = ({ active }) => (
@@ -43,6 +47,95 @@ const ProfileIcon = ({ active }) => (
     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
   </svg>
 );
+
+/* SEARCH BAR */
+
+function TopBar({ searchQuery, setSearchQuery, searchResults, onUserSelect }) {
+  return (
+    <div
+      style={{
+        background: SURFACE,
+        padding: "12px 16px",
+        borderBottom: "1px solid #2a3942",
+      }}
+    >
+      <input
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search users..."
+        style={{
+          width: "100%",
+          background: "#2a3942",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 14px",
+          color: TEXT,
+          outline: "none",
+          fontSize: "14px",
+          boxSizing: "border-box",
+        }}
+      />
+
+      {searchQuery.length >= 2 && (
+        <div
+          style={{
+            marginTop: "10px",
+            background: "#1f2937",
+            borderRadius: "10px",
+            overflow: "hidden",
+            maxHeight: "300px",
+            overflowY: "auto",
+          }}
+        >
+          {searchResults.length === 0 ? (
+            <div
+              style={{
+                padding: "14px",
+                color: MUTED,
+                textAlign: "center",
+              }}
+            >
+              No users found
+            </div>
+          ) : (
+            searchResults.map((u) => (
+              <div
+                key={u.id}
+                onClick={() => onUserSelect(u)}
+                style={{
+                  padding: "12px 14px",
+                  cursor: "pointer",
+                  borderBottom: "1px solid #2a3942",
+                }}
+              >
+                <div
+                  style={{
+                    color: TEXT,
+                    fontWeight: "600",
+                  }}
+                >
+                  {u.username}
+                </div>
+
+                {u.mobile_number && (
+                  <div
+                    style={{
+                      color: MUTED,
+                      fontSize: "12px",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {u.mobile_number}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* FOOTER */
 
@@ -80,6 +173,7 @@ function BottomNav({ current, onChange }) {
           }}
         >
           <Icon active={current === id} />
+
           <span
             style={{
               fontSize: "11px",
@@ -104,6 +198,11 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState("chats");
   const [chatRoom, setChatRoom] = useState(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+
+  /* LOAD AUTH */
+
   useEffect(() => {
     const savedToken = localStorage.getItem("authToken");
     const savedUser = localStorage.getItem("authUser");
@@ -116,6 +215,37 @@ export default function App() {
     setLoading(false);
   }, []);
 
+  /* SEARCH USERS */
+
+  useEffect(() => {
+    if (searchQuery.length < 2 || !token) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          API_BASE + "/api/search/?q=" + encodeURIComponent(searchQuery),
+          {
+            headers: {
+              Authorization: `Token ${token}`,
+            },
+          },
+        );
+
+        const data = await res.json();
+        setSearchResults(data);
+      } catch {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, token]);
+
+  /* LOGIN */
+
   const login = (userData, authToken) => {
     setUser(userData);
     setToken(authToken);
@@ -123,6 +253,8 @@ export default function App() {
     localStorage.setItem("authToken", authToken);
     localStorage.setItem("authUser", JSON.stringify(userData));
   };
+
+  /* LOGOUT */
 
   const logout = () => {
     setUser(null);
@@ -157,6 +289,26 @@ export default function App() {
             overflow: "hidden",
           }}
         >
+          {!chatRoom && (
+            <TopBar
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchResults={searchResults}
+              onUserSelect={(u) => {
+                const id1 = Math.min(user.id, u.id);
+                const id2 = Math.max(user.id, u.id);
+
+                setChatRoom({
+                  name: `dm_${id1}_${id2}`,
+                  displayName: u.username,
+                });
+
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
+            />
+          )}
+
           <div style={{ flex: 1, overflow: "hidden" }}>
             {chatRoom ? (
               <ChatRoom room={chatRoom} onBack={() => setChatRoom(null)} />
